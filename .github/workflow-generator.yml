@@ -1,0 +1,7 @@
+workflow:
+  generator:
+    java:
+      primary: "eleven"
+    action:
+      checkout:
+        fetch-depth: 0

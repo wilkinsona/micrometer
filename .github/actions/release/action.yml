@@ -1,0 +1,33 @@
+name: Release
+inputs:
+  action:
+    description: Release action to perform
+    required: true
+  release-train-maven-repository-url:
+    description: URL of a Maven repository to be used to resolve artifacts when being built as part of a release train
+    required: true
+  release-train-maven-repository-username:
+    description: Username for authentication with the release train Maven repository
+    required: true
+  release-train-maven-repository-password:
+    description: Password for authentication with the release train Maven repository
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Publish Artifacts
+      if: ${{ inputs.action == 'publish-artifacts' }}
+      shell: bash
+      env:
+        RELEASE_TRAIN_MAVEN_REPOSITORY_URL: ${{ inputs.release-train-maven-repository-url }}
+        RELEASE_TRAIN_MAVEN_REPOSITORY_USERNAME: ${{ inputs.release-train-maven-repository-username }}
+        RELEASE_TRAIN_MAVEN_REPOSITORY_PASSWORD: ${{ inputs.release-train-maven-repository-password }}
+      run:  ./gradlew -PdeploymentRepository=$(pwd)/deployment-repository publishNebulaPublicationToDeploymentRepository
+    - name: Test
+      if: ${{ inputs.action == 'test' }}
+      shell: bash
+      env:
+        RELEASE_TRAIN_MAVEN_REPOSITORY_URL: ${{ inputs.release-train-maven-repository-url }}
+        RELEASE_TRAIN_MAVEN_REPOSITORY_USERNAME: ${{ inputs.release-train-maven-repository-username }}
+        RELEASE_TRAIN_MAVEN_REPOSITORY_PASSWORD: ${{ inputs.release-train-maven-repository-password }}
+      run: ./gradlew -PmavenRepositoryUrl=${{ inputs.maven-repository }} build

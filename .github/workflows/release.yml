@@ -1,0 +1,65 @@
+name: "Release"
+run-name: "${{ (inputs.action == 'publish-artifacts' && 'Publish Artifacts') || 'Test' }}"
+"on":
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Release action to perform"
+        options:
+        - "publish-artifacts"
+        - "test"
+        required: true
+        type: "choice"
+      callback:
+        description: "Repository to which a callback should be made upon completion of the release action"
+        required: true
+        type: "string"
+      callback-ref:
+        description: "Ref in the callback repository to which a callback should be made upon completion of the release action"
+        required: true
+        type: "string"
+      release-train-maven-repository-url:
+        description: "URL of a Maven repository to be used to resolve artifacts when being built as part of a release train"
+        required: true
+        type: "string"
+permissions:
+  contents: "read"
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}-${{ inputs.action }}"
+jobs:
+  perform-release-action:
+    name: "Perform Release Action"
+    runs-on: "ubuntu-latest"
+    steps:
+    - name: "Set up Java"
+      id: "set-up-java"
+      uses: "actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654" # 5.2.0
+      with:
+        distribution: "liberica"
+        java-version: "11"
+    - name: "Check Out Code"
+      id: "check-out-code"
+      uses: "actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd" # 6.0.2
+      with:
+        fetch-depth: "0"
+    - name: "Perform Release Action"
+      id: "perform-release-action"
+      uses: "./.github/actions/release"
+      with:
+        action: "${{ inputs.action }}"
+        release-train-maven-repository-password: "${{ secrets.RELEASE_TRAIN_MAVEN_REPOSITORY_PASSWORD }}"
+        release-train-maven-repository-url: "${{ inputs.release-train-maven-repository-url }}"
+        release-train-maven-repository-username: "${{ secrets.RELEASE_TRAIN_MAVEN_REPOSITORY_USERNAME }}"
+    - name: "Upload Deployment Repository"
+      id: "upload-deployment-repository"
+      if: "${{ inputs.action == 'publish-artifacts' }}"
+      uses: "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a" # 7.0.1
+      with:
+        name: "deployment-repository"
+        path: "deployment-repository/**"
+    - name: "Send Callback"
+      id: "send-callback"
+      if: "${{ !cancelled() }}"
+      env:
+        GH_TOKEN: "${{ secrets.GHA_RELEASE_TOKEN }}"
+      run: "gh workflow run resume --repo ${{ inputs.callback }} --ref ${{ inputs.callback-ref }} --field repository=${{ github.repository }} --field run_attempt=${{ github.run_attempt }} --field run_id=${{ github.run_id }}"

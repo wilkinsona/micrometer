@@ -1,0 +1,24 @@
+name: "Join Release Train"
+"on":
+  workflow_dispatch:
+    inputs:
+      release-train:
+        description: "Release train to join"
+        required: true
+        type: "string"
+      release-train-repository:
+        description: "Repository that is orchestrating the release train"
+        required: true
+        type: "string"
+permissions:
+  contents: "none"
+jobs:
+  join-release-train:
+    name: "Join Release Train"
+    runs-on: "ubuntu-latest"
+    steps:
+    - name: "Join Release Train"
+      id: "join-release-train"
+      env:
+        GH_TOKEN: "${{ secrets.GHA_RELEASE_TOKEN }}"
+      run: "gh workflow run join --repo ${{ inputs.release-train-repository }} --ref ${{ inputs.release-train }} --field repository=${{ github.repository }} --field run-attempt=${{ github.run_attempt }} --field run-id=${{ github.run_id }}"
